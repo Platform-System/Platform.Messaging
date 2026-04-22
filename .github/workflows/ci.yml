@@ -1,4 +1,4 @@
-name: Platform.Messaging CI
+name: Messaging CI
 
 on:
   push:
