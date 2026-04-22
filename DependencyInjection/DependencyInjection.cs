@@ -10,7 +10,10 @@ namespace Platform.Messaging.DependencyInjection;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddPlatformRabbitMqMessaging(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddPlatformRabbitMqMessaging(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        Action<IBusRegistrationConfigurator>? configureBus = null)
     {
         services.AddOptions<RabbitMqOptions>()
             .Bind(configuration.GetSection(ConfigurationSections.RabbitMq))
@@ -21,6 +24,8 @@ public static class DependencyInjection
 
         services.AddMassTransit(configurator =>
         {
+            configureBus?.Invoke(configurator);
+
             configurator.UsingRabbitMq((context, busConfigurator) =>
             {
                 var options = context.GetRequiredService<Microsoft.Extensions.Options.IOptions<RabbitMqOptions>>().Value;
@@ -30,6 +35,8 @@ public static class DependencyInjection
                     hostConfigurator.Username(options.UserName);
                     hostConfigurator.Password(options.Password);
                 });
+
+                busConfigurator.ConfigureEndpoints(context);
             });
         });
 
