@@ -1,4 +1,4 @@
-name: Messaging CI
+name: CI
 
 on:
   push:
@@ -9,3 +9,4 @@ jobs:
     uses: Platform-System/Platform.CI-CD/.github/workflows/dotnet-build-template.yml@main
     with:
       project_path: 'Platform.Messaging.csproj'
+
