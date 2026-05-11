@@ -1,5 +1,9 @@
 name: CI
 
+permissions:
+  contents: read
+  packages: write
+
 on:
   push:
     branches: [ main ]
@@ -10,5 +14,6 @@ jobs:
     secrets: inherit
     with:
       project_path: 'Platform.Messaging.csproj'
-
+
+
 
