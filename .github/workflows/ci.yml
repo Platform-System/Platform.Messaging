@@ -14,6 +14,7 @@ jobs:
     secrets: inherit
     with:
       project_path: 'Platform.Messaging.csproj'
+      test_path: 'Platform.Messaging.Tests/Platform.Messaging.Tests.csproj'
 
 
 
