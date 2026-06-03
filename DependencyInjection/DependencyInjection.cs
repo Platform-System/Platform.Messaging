@@ -1,16 +1,39 @@
 using MassTransit;
+using Confluent.Kafka;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Platform.Messaging.Abstractions;
 using Platform.Messaging.Configurations;
 using Platform.Messaging.Constants;
+using Platform.Messaging.Helpers;
 using Platform.Messaging.Implementations;
 
 namespace Platform.Messaging.DependencyInjection;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddPlatformRabbitMqMessaging(
+    public static IServiceCollection AddKafkaMessaging(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddOptions<KafkaOptions>()
+            .Bind(configuration.GetSection(ConfigurationSections.Kafka))
+            .Validate(s => !string.IsNullOrWhiteSpace(s.BootstrapServers), KafkaValidationMessages.BootstrapServersRequired)
+            .ValidateOnStart();
+
+        services.AddSingleton<IProducer<string, string>>(sp =>
+        {
+            var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<KafkaOptions>>().Value;
+            var producerConfig = KafkaClientConfigFactory.CreateProducerConfig(options);
+
+            return new ProducerBuilder<string, string>(producerConfig).Build();
+        });
+        services.AddSingleton<IKafkaMessagePublisher, KafkaMessagePublisher>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddRabbitMqMessaging(
         this IServiceCollection services,
         IConfiguration configuration,
         Action<IBusRegistrationConfigurator>? configureBus = null)

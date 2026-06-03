@@ -13,7 +13,42 @@ namespace Platform.Messaging.Tests.DependencyInjection;
 public sealed class DependencyInjectionTests
 {
     [Fact]
-    public void AddPlatformRabbitMqMessaging_WithValidConfig_BindsOptionsAndRegistersPublisher()
+    public void AddKafkaMessaging_WithValidConfig_BindsOptionsAndRegistersPublisher()
+    {
+        var services = new ServiceCollection();
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            [$"{ConfigurationSections.Kafka}:BootstrapServers"] = "kafka:29092"
+        });
+
+        services.AddKafkaMessaging(configuration);
+        using var provider = services.BuildServiceProvider();
+
+        var options = provider.GetRequiredService<IOptions<KafkaOptions>>().Value;
+        Assert.Equal("kafka:29092", options.BootstrapServers);
+
+        var publisherDescriptor = services.SingleOrDefault(x => x.ServiceType == typeof(IKafkaMessagePublisher));
+        Assert.NotNull(publisherDescriptor);
+        Assert.Equal(typeof(KafkaMessagePublisher), publisherDescriptor!.ImplementationType);
+    }
+
+    [Fact]
+    public void AddKafkaMessaging_WithMissingBootstrapServers_ThrowsOptionsValidationExceptionOnAccess()
+    {
+        var services = new ServiceCollection();
+        var configuration = BuildConfiguration(new Dictionary<string, string?>());
+
+        services.AddKafkaMessaging(configuration);
+        using var provider = services.BuildServiceProvider();
+
+        Action action = () => _ = provider.GetRequiredService<IOptions<KafkaOptions>>().Value;
+        var exception = Assert.Throws<OptionsValidationException>(action);
+
+        Assert.Contains(KafkaValidationMessages.BootstrapServersRequired, exception.Failures);
+    }
+
+    [Fact]
+    public void AddRabbitMqMessaging_WithValidConfig_BindsOptionsAndRegistersPublisher()
     {
         var services = new ServiceCollection();
         var configuration = BuildConfiguration(new Dictionary<string, string?>
@@ -24,7 +59,7 @@ public sealed class DependencyInjectionTests
             [$"{ConfigurationSections.RabbitMq}:VirtualHost"] = "/platform"
         });
 
-        services.AddPlatformRabbitMqMessaging(configuration);
+        services.AddRabbitMqMessaging(configuration);
         using var provider = services.BuildServiceProvider();
 
         var options = provider.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
@@ -39,7 +74,7 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
-    public void AddPlatformRabbitMqMessaging_WithMissingHostName_ThrowsOptionsValidationExceptionOnAccess()
+    public void AddRabbitMqMessaging_WithMissingHostName_ThrowsOptionsValidationExceptionOnAccess()
     {
         var services = new ServiceCollection();
         var configuration = BuildConfiguration(new Dictionary<string, string?>
@@ -48,7 +83,7 @@ public sealed class DependencyInjectionTests
             [$"{ConfigurationSections.RabbitMq}:Password"] = "guest"
         });
 
-        services.AddPlatformRabbitMqMessaging(configuration);
+        services.AddRabbitMqMessaging(configuration);
         using var provider = services.BuildServiceProvider();
 
         Action action = () => _ = provider.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
@@ -58,7 +93,7 @@ public sealed class DependencyInjectionTests
     }
 
     [Fact]
-    public void AddPlatformRabbitMqMessaging_WithMissingPassword_ThrowsOptionsValidationExceptionOnAccess()
+    public void AddRabbitMqMessaging_WithMissingPassword_ThrowsOptionsValidationExceptionOnAccess()
     {
         var services = new ServiceCollection();
         var configuration = BuildConfiguration(new Dictionary<string, string?>
@@ -67,7 +102,7 @@ public sealed class DependencyInjectionTests
             [$"{ConfigurationSections.RabbitMq}:UserName"] = "guest"
         });
 
-        services.AddPlatformRabbitMqMessaging(configuration);
+        services.AddRabbitMqMessaging(configuration);
         using var provider = services.BuildServiceProvider();
 
         Action action = () => _ = provider.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
