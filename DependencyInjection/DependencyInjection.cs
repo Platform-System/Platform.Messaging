@@ -28,6 +28,7 @@ public static class DependencyInjection
 
             return new ProducerBuilder<string, string>(producerConfig).Build();
         });
+        services.AddSingleton<IKafkaConsumerFactory, KafkaConsumerFactory>();
         services.AddSingleton<IKafkaMessagePublisher, KafkaMessagePublisher>();
 
         return services;

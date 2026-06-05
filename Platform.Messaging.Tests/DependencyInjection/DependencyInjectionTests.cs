@@ -13,7 +13,7 @@ namespace Platform.Messaging.Tests.DependencyInjection;
 public sealed class DependencyInjectionTests
 {
     [Fact]
-    public void AddKafkaMessaging_WithValidConfig_BindsOptionsAndRegistersPublisher()
+    public void AddKafkaMessaging_WithValidConfig_BindsOptionsAndRegistersKafkaServices()
     {
         var services = new ServiceCollection();
         var configuration = BuildConfiguration(new Dictionary<string, string?>
@@ -30,6 +30,10 @@ public sealed class DependencyInjectionTests
         var publisherDescriptor = services.SingleOrDefault(x => x.ServiceType == typeof(IKafkaMessagePublisher));
         Assert.NotNull(publisherDescriptor);
         Assert.Equal(typeof(KafkaMessagePublisher), publisherDescriptor!.ImplementationType);
+
+        var consumerFactoryDescriptor = services.SingleOrDefault(x => x.ServiceType == typeof(IKafkaConsumerFactory));
+        Assert.NotNull(consumerFactoryDescriptor);
+        Assert.Equal(typeof(KafkaConsumerFactory), consumerFactoryDescriptor!.ImplementationType);
     }
 
     [Fact]
