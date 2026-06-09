@@ -74,7 +74,7 @@ public abstract class KafkaConsumerWithRetryBase<TMessage> : BackgroundService
                     var error = string.Join(", ", result.Errors);
                     Logger.LogWarning("Failed to process Kafka message on topic {Topic}: {Errors}", _topic, error);
 
-                    if (messageContext.RetryCount < _maxRetryCount)
+                    if (messageContext.RetryCount + 1 < _maxRetryCount)
                     {
                         await StoreRetryAsync(messageContext, error, messageContext.RetryCount + 1, stoppingToken);
                         consumer.Commit(consumeResult);

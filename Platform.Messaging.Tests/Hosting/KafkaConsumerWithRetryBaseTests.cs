@@ -39,29 +39,66 @@ public sealed class KafkaConsumerWithRetryBaseTests
         Assert.Single(consumer.CommittedResults);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WhenInitialFailureReachesMaxRetryCount_PublishesDeadLetterWithoutPersistingRetry()
+    {
+        var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var consumer = new StubConsumer(
+            new ConsumeResult<string, string>
+            {
+                Topic = "identity.user-synced",
+                Partition = new Partition(0),
+                Offset = new Offset(10),
+                Message = new Message<string, string>
+                {
+                    Key = "user-1",
+                    Value = "payload-1"
+                }
+            });
+
+        var service = new TestKafkaConsumerService(
+            new StubKafkaConsumerFactory(consumer),
+            cancellationTokenSource,
+            processDueRetryResult: false,
+            processResult: KafkaMessageProcessResult.Failure(["db timeout"]),
+            maxRetryCount: 1);
+
+        await service.RunUntilCancelledAsync(cancellationTokenSource.Token);
+
+        Assert.Empty(service.StoredRetryCounts);
+        Assert.Single(service.PublishedDeadLetterEnvelopes);
+        Assert.Single(consumer.CommittedResults);
+    }
+
     private sealed class TestKafkaConsumerService : KafkaConsumerWithRetryBase<string>
     {
         private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly bool _processDueRetryResult;
+        private readonly KafkaMessageProcessResult _processResult;
 
         public TestKafkaConsumerService(
             IKafkaConsumerFactory consumerFactory,
             CancellationTokenSource cancellationTokenSource,
-            bool processDueRetryResult)
+            bool processDueRetryResult,
+            KafkaMessageProcessResult? processResult = null,
+            int maxRetryCount = 3)
             : base(
                 "identity.user-synced",
                 "wallet-group",
-                maxRetryCount: 3,
+                maxRetryCount,
                 consumerFactory,
                 new StubKafkaMessagePublisher(),
                 NullLogger<TestKafkaConsumerService>.Instance)
         {
             _cancellationTokenSource = cancellationTokenSource;
             _processDueRetryResult = processDueRetryResult;
+            _processResult = processResult ?? KafkaMessageProcessResult.Success();
         }
 
         public bool ProcessDueRetryCalled { get; private set; }
         public List<string> ProcessedMessages { get; } = [];
+        public List<int> StoredRetryCounts { get; } = [];
+        public List<KafkaRetryEnvelope<string>> PublishedDeadLetterEnvelopes { get; } = [];
 
         public Task RunUntilCancelledAsync(CancellationToken cancellationToken)
             => ExecuteAsync(cancellationToken);
@@ -96,11 +133,14 @@ public sealed class KafkaConsumerWithRetryBaseTests
         {
             ProcessedMessages.Add(message);
             _cancellationTokenSource.Cancel();
-            return Task.FromResult(KafkaMessageProcessResult.Success());
+            return Task.FromResult(_processResult);
         }
 
         protected override Task StoreRetryAsync(KafkaMessageContext<string> context, string error, int retryCount, CancellationToken cancellationToken)
-            => Task.CompletedTask;
+        {
+            StoredRetryCounts.Add(retryCount);
+            return Task.CompletedTask;
+        }
 
         protected override Task<bool> ProcessDueRetryMessageAsync(CancellationToken cancellationToken)
         {
@@ -112,7 +152,10 @@ public sealed class KafkaConsumerWithRetryBaseTests
             ConsumeResult<string, string>? consumeResult,
             KafkaRetryEnvelope<string> envelope,
             CancellationToken cancellationToken)
-            => Task.CompletedTask;
+        {
+            PublishedDeadLetterEnvelopes.Add(envelope);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class StubKafkaConsumerFactory : IKafkaConsumerFactory
