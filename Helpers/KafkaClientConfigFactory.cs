@@ -13,6 +13,7 @@ public static class KafkaClientConfigFactory
             EnableIdempotence = true
         };
 
+        ApplyProducerRetryOptions(config, options);
         ApplySecurityOptions(config, options);
         return config;
     }
@@ -50,5 +51,23 @@ public static class KafkaClientConfigFactory
 
         if (!string.IsNullOrWhiteSpace(options.SaslPassword))
             config.SaslPassword = options.SaslPassword;
+    }
+
+    private static void ApplyProducerRetryOptions(ProducerConfig config, KafkaOptions options)
+    {
+        if (options.ProducerMessageSendMaxRetries is > 0)
+            config.MessageSendMaxRetries = options.ProducerMessageSendMaxRetries;
+
+        if (options.ProducerRetryBackoffMs is > 0)
+            config.RetryBackoffMs = options.ProducerRetryBackoffMs;
+
+        if (options.ProducerRetryBackoffMaxMs is > 0)
+            config.RetryBackoffMaxMs = options.ProducerRetryBackoffMaxMs;
+
+        if (options.ProducerRequestTimeoutMs is > 0)
+            config.RequestTimeoutMs = options.ProducerRequestTimeoutMs;
+
+        if (options.ProducerMessageTimeoutMs is > 0)
+            config.MessageTimeoutMs = options.ProducerMessageTimeoutMs;
     }
 }

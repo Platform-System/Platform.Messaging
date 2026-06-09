@@ -7,4 +7,9 @@ public sealed class KafkaOptions
     public string SaslMechanism { get; set; } = string.Empty;
     public string SaslUsername { get; set; } = string.Empty;
     public string SaslPassword { get; set; } = string.Empty;
+    public int? ProducerMessageSendMaxRetries { get; set; }
+    public int? ProducerRetryBackoffMs { get; set; }
+    public int? ProducerRetryBackoffMaxMs { get; set; }
+    public int? ProducerRequestTimeoutMs { get; set; }
+    public int? ProducerMessageTimeoutMs { get; set; }
 }

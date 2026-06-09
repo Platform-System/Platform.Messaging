@@ -18,7 +18,12 @@ public sealed class DependencyInjectionTests
         var services = new ServiceCollection();
         var configuration = BuildConfiguration(new Dictionary<string, string?>
         {
-            [$"{ConfigurationSections.Kafka}:BootstrapServers"] = "kafka:29092"
+            [$"{ConfigurationSections.Kafka}:BootstrapServers"] = "kafka:29092",
+            [$"{ConfigurationSections.Kafka}:ProducerMessageSendMaxRetries"] = "5",
+            [$"{ConfigurationSections.Kafka}:ProducerRetryBackoffMs"] = "250",
+            [$"{ConfigurationSections.Kafka}:ProducerRetryBackoffMaxMs"] = "3000",
+            [$"{ConfigurationSections.Kafka}:ProducerRequestTimeoutMs"] = "30000",
+            [$"{ConfigurationSections.Kafka}:ProducerMessageTimeoutMs"] = "120000"
         });
 
         services.AddKafkaMessaging(configuration);
@@ -26,6 +31,11 @@ public sealed class DependencyInjectionTests
 
         var options = provider.GetRequiredService<IOptions<KafkaOptions>>().Value;
         Assert.Equal("kafka:29092", options.BootstrapServers);
+        Assert.Equal(5, options.ProducerMessageSendMaxRetries);
+        Assert.Equal(250, options.ProducerRetryBackoffMs);
+        Assert.Equal(3000, options.ProducerRetryBackoffMaxMs);
+        Assert.Equal(30000, options.ProducerRequestTimeoutMs);
+        Assert.Equal(120000, options.ProducerMessageTimeoutMs);
 
         var publisherDescriptor = services.SingleOrDefault(x => x.ServiceType == typeof(IKafkaMessagePublisher));
         Assert.NotNull(publisherDescriptor);
@@ -49,6 +59,26 @@ public sealed class DependencyInjectionTests
         var exception = Assert.Throws<OptionsValidationException>(action);
 
         Assert.Contains(KafkaValidationMessages.BootstrapServersRequired, exception.Failures);
+    }
+
+    [Fact]
+    public void AddKafkaMessaging_WithInvalidProducerRetryRange_ThrowsOptionsValidationExceptionOnAccess()
+    {
+        var services = new ServiceCollection();
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            [$"{ConfigurationSections.Kafka}:BootstrapServers"] = "kafka:29092",
+            [$"{ConfigurationSections.Kafka}:ProducerRetryBackoffMs"] = "3000",
+            [$"{ConfigurationSections.Kafka}:ProducerRetryBackoffMaxMs"] = "250"
+        });
+
+        services.AddKafkaMessaging(configuration);
+        using var provider = services.BuildServiceProvider();
+
+        Action action = () => _ = provider.GetRequiredService<IOptions<KafkaOptions>>().Value;
+        var exception = Assert.Throws<OptionsValidationException>(action);
+
+        Assert.Contains(KafkaValidationMessages.ProducerRetryBackoffRangeInvalid, exception.Failures);
     }
 
     [Fact]

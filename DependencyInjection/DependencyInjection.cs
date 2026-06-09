@@ -19,6 +19,17 @@ public static class DependencyInjection
         services.AddOptions<KafkaOptions>()
             .Bind(configuration.GetSection(ConfigurationSections.Kafka))
             .Validate(s => !string.IsNullOrWhiteSpace(s.BootstrapServers), KafkaValidationMessages.BootstrapServersRequired)
+            .Validate(s => s.ProducerMessageSendMaxRetries is null or > 0, KafkaValidationMessages.ProducerMessageSendMaxRetriesInvalid)
+            .Validate(s => s.ProducerRetryBackoffMs is null or > 0, KafkaValidationMessages.ProducerRetryBackoffMsInvalid)
+            .Validate(s => s.ProducerRetryBackoffMaxMs is null or > 0, KafkaValidationMessages.ProducerRetryBackoffMaxMsInvalid)
+            .Validate(s => s.ProducerRequestTimeoutMs is null or > 0, KafkaValidationMessages.ProducerRequestTimeoutMsInvalid)
+            .Validate(s => s.ProducerMessageTimeoutMs is null or > 0, KafkaValidationMessages.ProducerMessageTimeoutMsInvalid)
+            .Validate(
+                s => s.ProducerRetryBackoffMaxMs is null || s.ProducerRetryBackoffMs is null || s.ProducerRetryBackoffMaxMs >= s.ProducerRetryBackoffMs,
+                KafkaValidationMessages.ProducerRetryBackoffRangeInvalid)
+            .Validate(
+                s => s.ProducerMessageTimeoutMs is null || s.ProducerRequestTimeoutMs is null || s.ProducerMessageTimeoutMs >= s.ProducerRequestTimeoutMs,
+                KafkaValidationMessages.ProducerMessageTimeoutRangeInvalid)
             .ValidateOnStart();
 
         services.AddSingleton<IProducer<string, string>>(sp =>
