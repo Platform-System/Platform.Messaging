@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Platform.Messaging.Configurations;
 
 namespace Platform.Messaging.Hosting;
 
@@ -52,8 +53,9 @@ public abstract class KafkaOutboxDispatcherBase<TClaimedMessage> : BackgroundSer
             catch (Exception ex)
             {
                 var retryCount = GetRetryCount(message) + 1;
+                var retryConfiguration = GetRetryConfiguration(message);
 
-                if (retryCount < _maxRetryCount)
+                if (retryCount < retryConfiguration.MaxRetryCount)
                 {
                     var nextRetryAt = await ScheduleRetryAsync(message, retryCount, ex.Message, cancellationToken);
                     OnRetryScheduled(message, retryCount, nextRetryAt, ex);
@@ -78,6 +80,9 @@ public abstract class KafkaOutboxDispatcherBase<TClaimedMessage> : BackgroundSer
     protected virtual void OnRetryScheduled(TClaimedMessage message, int retryCount, DateTime nextRetryAt, Exception exception)
     {
     }
+
+    protected virtual OutboxRetryConfiguration GetRetryConfiguration(TClaimedMessage message)
+        => OutboxRetryConfiguration.Create(_maxRetryCount);
 
     protected virtual void OnDeadLetterPublishFailed(TClaimedMessage message, DateTime nextRetryAt, Exception exception)
     {

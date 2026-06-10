@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Platform.Messaging.Configurations;
 using Platform.Messaging.Hosting;
 using Xunit;
 
@@ -38,6 +39,21 @@ public sealed class KafkaOutboxDispatcherBaseTests
         Assert.Equal(3, message.RetryCount);
     }
 
+    [Fact]
+    public async Task DispatchBatchAsyncCore_UsesPerMessageRetryConfiguration_WhenOverridden()
+    {
+        var message = new TestClaimedMessage { RetryCount = 1, MaxRetryCount = 2 };
+        var dispatcher = new TestOutboxDispatcher(
+            [message],
+            maxRetryCount: 5,
+            publishException: new InvalidOperationException("publish failed"));
+
+        await dispatcher.DispatchOnceAsync();
+
+        Assert.Single(dispatcher.DeadLetterMessages);
+        Assert.Empty(dispatcher.ScheduledRetries);
+    }
+
     private sealed class TestOutboxDispatcher : KafkaOutboxDispatcherBase<TestClaimedMessage>
     {
         private readonly IReadOnlyCollection<TestClaimedMessage> _messages;
@@ -64,6 +80,11 @@ public sealed class KafkaOutboxDispatcherBaseTests
             => Task.FromResult(_messages);
 
         protected override int GetRetryCount(TestClaimedMessage message) => message.RetryCount;
+
+        protected override OutboxRetryConfiguration GetRetryConfiguration(TestClaimedMessage message)
+            => message.MaxRetryCount is null
+                ? base.GetRetryConfiguration(message)
+                : OutboxRetryConfiguration.Create(message.MaxRetryCount.Value);
 
         protected override void SetRetryCount(TestClaimedMessage message, int retryCount) => message.RetryCount = retryCount;
 
@@ -92,5 +113,6 @@ public sealed class KafkaOutboxDispatcherBaseTests
     private sealed class TestClaimedMessage
     {
         public int RetryCount { get; set; }
+        public int? MaxRetryCount { get; set; }
     }
 }

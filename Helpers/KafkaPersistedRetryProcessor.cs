@@ -17,9 +17,7 @@ public static class KafkaPersistedRetryProcessor
         Func<Guid, KafkaRetryEnvelope<TMessage>, CancellationToken, Task> updateRetryAsync,
         Func<TMessage, CancellationToken, Task<KafkaMessageProcessResult>> processMessageAsync,
         Func<KafkaMessageContext<TMessage>, string, int, KafkaRetryEnvelope<TMessage>> createRetryEnvelope,
-        Func<TMessage, bool> isPayloadValid,
-        Func<TMessage, string?> keySelector,
-        Func<KafkaRetryEnvelope<TMessage>> createInvalidPersistedEnvelope,
+        KafkaPersistedRetryBehavior<TMessage> retryBehavior,
         IKafkaMessagePublisher publisher,
         KafkaConsumerTopicRetryOptions consumerOptions,
         CancellationToken cancellationToken)
@@ -32,14 +30,14 @@ public static class KafkaPersistedRetryProcessor
         var retryRecordId = getRetryRecordId(retryRecord);
         var retryEnvelope = JsonSerializer.Deserialize<KafkaRetryEnvelope<TMessage>>(getPayload(retryRecord), JsonOptions);
 
-        if (retryEnvelope?.Payload is null || !isPayloadValid(retryEnvelope.Payload))
+        if (retryEnvelope?.Payload is null || !retryBehavior.IsPayloadValid(retryEnvelope.Payload))
         {
-            var invalidEnvelope = retryEnvelope ?? createInvalidPersistedEnvelope();
+            var invalidEnvelope = retryEnvelope ?? retryBehavior.CreateInvalidPersistedEnvelope();
             invalidEnvelope.NextAttemptAt = null;
 
             await publisher.PublishAsync(
                 consumerOptions.DeadLetterTopic,
-                keySelector(invalidEnvelope.Payload) ?? Guid.NewGuid().ToString("N"),
+                retryBehavior.KeySelector(invalidEnvelope.Payload) ?? Guid.NewGuid().ToString("N"),
                 invalidEnvelope,
                 cancellationToken);
 
@@ -86,7 +84,7 @@ public static class KafkaPersistedRetryProcessor
 
         await publisher.PublishAsync(
             consumerOptions.DeadLetterTopic,
-            keySelector(retryEnvelope.Payload) ?? Guid.NewGuid().ToString("N"),
+            retryBehavior.KeySelector(retryEnvelope.Payload) ?? Guid.NewGuid().ToString("N"),
             deadLetterEnvelope,
             cancellationToken);
 
