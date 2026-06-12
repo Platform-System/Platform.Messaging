@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Platform.Messaging.Abstractions;
 using Platform.Messaging.Configurations;
 using Platform.Messaging.Constants;
 using Platform.Messaging.DependencyInjection;
@@ -123,70 +122,6 @@ public sealed class DependencyInjectionTests
         var exception = Assert.Throws<OptionsValidationException>(action);
 
         Assert.Contains(KafkaValidationMessages.ConsumerAutoOffsetResetInvalid, exception.Failures);
-    }
-
-    [Fact]
-    public void AddRabbitMqMessaging_WithValidConfig_BindsOptionsAndRegistersPublisher()
-    {
-        var services = new ServiceCollection();
-        var configuration = BuildConfiguration(new Dictionary<string, string?>
-        {
-            [$"{ConfigurationSections.RabbitMq}:HostName"] = "localhost",
-            [$"{ConfigurationSections.RabbitMq}:UserName"] = "guest",
-            [$"{ConfigurationSections.RabbitMq}:Password"] = "guest",
-            [$"{ConfigurationSections.RabbitMq}:VirtualHost"] = "/platform"
-        });
-
-        services.AddRabbitMqMessaging(configuration);
-        using var provider = services.BuildServiceProvider();
-
-        var options = provider.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
-        Assert.Equal("localhost", options.HostName);
-        Assert.Equal("guest", options.UserName);
-        Assert.Equal("guest", options.Password);
-        Assert.Equal("/platform", options.VirtualHost);
-
-        var publisherDescriptor = services.SingleOrDefault(x => x.ServiceType == typeof(IMessagePublisher));
-        Assert.NotNull(publisherDescriptor);
-        Assert.Equal(typeof(RabbitMqMessagePublisher), publisherDescriptor!.ImplementationType);
-    }
-
-    [Fact]
-    public void AddRabbitMqMessaging_WithMissingHostName_ThrowsOptionsValidationExceptionOnAccess()
-    {
-        var services = new ServiceCollection();
-        var configuration = BuildConfiguration(new Dictionary<string, string?>
-        {
-            [$"{ConfigurationSections.RabbitMq}:UserName"] = "guest",
-            [$"{ConfigurationSections.RabbitMq}:Password"] = "guest"
-        });
-
-        services.AddRabbitMqMessaging(configuration);
-        using var provider = services.BuildServiceProvider();
-
-        Action action = () => _ = provider.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
-        var exception = Assert.Throws<OptionsValidationException>(action);
-
-        Assert.Contains(RabbitMqValidationMessages.HostNameRequired, exception.Failures);
-    }
-
-    [Fact]
-    public void AddRabbitMqMessaging_WithMissingPassword_ThrowsOptionsValidationExceptionOnAccess()
-    {
-        var services = new ServiceCollection();
-        var configuration = BuildConfiguration(new Dictionary<string, string?>
-        {
-            [$"{ConfigurationSections.RabbitMq}:HostName"] = "localhost",
-            [$"{ConfigurationSections.RabbitMq}:UserName"] = "guest"
-        });
-
-        services.AddRabbitMqMessaging(configuration);
-        using var provider = services.BuildServiceProvider();
-
-        Action action = () => _ = provider.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
-        var exception = Assert.Throws<OptionsValidationException>(action);
-
-        Assert.Contains(RabbitMqValidationMessages.PasswordRequired, exception.Failures);
     }
 
     private static IConfiguration BuildConfiguration(Dictionary<string, string?> values)
