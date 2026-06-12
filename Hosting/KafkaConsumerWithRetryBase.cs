@@ -59,6 +59,12 @@ public abstract class KafkaConsumerWithRetryBase<TMessage> : BackgroundService
                 var messageContext = DeserializeMessage(consumeResult);
                 if (messageContext is null || !IsMessageValid(messageContext.Message))
                 {
+                    Logger.LogWarning(
+                        "Publishing invalid Kafka message from topic {Topic} to dead-letter topic. Partition: {Partition}, Offset: {Offset}.",
+                        _topic,
+                        consumeResult.Partition.Value,
+                        consumeResult.Offset.Value);
+
                     await PublishDeadLetterAsync(
                         consumeResult,
                         CreateInvalidMessageEnvelope(consumeResult),
@@ -80,6 +86,12 @@ public abstract class KafkaConsumerWithRetryBase<TMessage> : BackgroundService
                         consumer.Commit(consumeResult);
                         continue;
                     }
+
+                    Logger.LogWarning(
+                        "Publishing Kafka message from topic {Topic} to dead-letter topic after {RetryCount} retries: {Errors}",
+                        _topic,
+                        messageContext.RetryCount,
+                        error);
 
                     await PublishDeadLetterAsync(
                         consumeResult,
