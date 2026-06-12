@@ -24,12 +24,23 @@ public static class KafkaClientConfigFactory
         {
             BootstrapServers = options.BootstrapServers,
             GroupId = groupId,
-            AutoOffsetReset = AutoOffsetReset.Earliest,
+            AutoOffsetReset = ResolveAutoOffsetReset(options),
             EnableAutoCommit = false
         };
 
         ApplySecurityOptions(config, options);
         return config;
+    }
+
+    private static AutoOffsetReset ResolveAutoOffsetReset(KafkaOptions options)
+    {
+        if (!string.IsNullOrWhiteSpace(options.ConsumerAutoOffsetReset)
+            && Enum.TryParse<AutoOffsetReset>(options.ConsumerAutoOffsetReset, true, out var autoOffsetReset))
+        {
+            return autoOffsetReset;
+        }
+
+        return AutoOffsetReset.Latest;
     }
 
     private static void ApplySecurityOptions(ClientConfig config, KafkaOptions options)

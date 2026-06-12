@@ -19,6 +19,18 @@ public static class DependencyInjection
         services.AddOptions<KafkaOptions>()
             .Bind(configuration.GetSection(ConfigurationSections.Kafka))
             .Validate(s => !string.IsNullOrWhiteSpace(s.BootstrapServers), KafkaValidationMessages.BootstrapServersRequired)
+            .Validate(
+                s => string.IsNullOrWhiteSpace(s.SecurityProtocol)
+                    || Enum.TryParse<SecurityProtocol>(s.SecurityProtocol, true, out _),
+                KafkaValidationMessages.SecurityProtocolInvalid)
+            .Validate(
+                s => string.IsNullOrWhiteSpace(s.SaslMechanism)
+                    || Enum.TryParse<SaslMechanism>(s.SaslMechanism, true, out _),
+                KafkaValidationMessages.SaslMechanismInvalid)
+            .Validate(
+                s => string.IsNullOrWhiteSpace(s.ConsumerAutoOffsetReset)
+                    || Enum.TryParse<AutoOffsetReset>(s.ConsumerAutoOffsetReset, true, out _),
+                KafkaValidationMessages.ConsumerAutoOffsetResetInvalid)
             .Validate(s => s.ProducerMessageSendMaxRetries is null or > 0, KafkaValidationMessages.ProducerMessageSendMaxRetriesInvalid)
             .Validate(s => s.ProducerRetryBackoffMs is null or > 0, KafkaValidationMessages.ProducerRetryBackoffMsInvalid)
             .Validate(s => s.ProducerRetryBackoffMaxMs is null or > 0, KafkaValidationMessages.ProducerRetryBackoffMaxMsInvalid)

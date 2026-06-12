@@ -19,6 +19,9 @@ public sealed class DependencyInjectionTests
         var configuration = BuildConfiguration(new Dictionary<string, string?>
         {
             [$"{ConfigurationSections.Kafka}:BootstrapServers"] = "kafka:29092",
+            [$"{ConfigurationSections.Kafka}:SecurityProtocol"] = "SaslSsl",
+            [$"{ConfigurationSections.Kafka}:SaslMechanism"] = "Plain",
+            [$"{ConfigurationSections.Kafka}:ConsumerAutoOffsetReset"] = "Earliest",
             [$"{ConfigurationSections.Kafka}:ProducerMessageSendMaxRetries"] = "5",
             [$"{ConfigurationSections.Kafka}:ProducerRetryBackoffMs"] = "250",
             [$"{ConfigurationSections.Kafka}:ProducerRetryBackoffMaxMs"] = "3000",
@@ -31,6 +34,9 @@ public sealed class DependencyInjectionTests
 
         var options = provider.GetRequiredService<IOptions<KafkaOptions>>().Value;
         Assert.Equal("kafka:29092", options.BootstrapServers);
+        Assert.Equal("SaslSsl", options.SecurityProtocol);
+        Assert.Equal("Plain", options.SaslMechanism);
+        Assert.Equal("Earliest", options.ConsumerAutoOffsetReset);
         Assert.Equal(5, options.ProducerMessageSendMaxRetries);
         Assert.Equal(250, options.ProducerRetryBackoffMs);
         Assert.Equal(3000, options.ProducerRetryBackoffMaxMs);
@@ -79,6 +85,44 @@ public sealed class DependencyInjectionTests
         var exception = Assert.Throws<OptionsValidationException>(action);
 
         Assert.Contains(KafkaValidationMessages.ProducerRetryBackoffRangeInvalid, exception.Failures);
+    }
+
+    [Fact]
+    public void AddKafkaMessaging_WithInvalidSecurityProtocol_ThrowsOptionsValidationExceptionOnAccess()
+    {
+        var services = new ServiceCollection();
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            [$"{ConfigurationSections.Kafka}:BootstrapServers"] = "kafka:29092",
+            [$"{ConfigurationSections.Kafka}:SecurityProtocol"] = "NotAProtocol"
+        });
+
+        services.AddKafkaMessaging(configuration);
+        using var provider = services.BuildServiceProvider();
+
+        Action action = () => _ = provider.GetRequiredService<IOptions<KafkaOptions>>().Value;
+        var exception = Assert.Throws<OptionsValidationException>(action);
+
+        Assert.Contains(KafkaValidationMessages.SecurityProtocolInvalid, exception.Failures);
+    }
+
+    [Fact]
+    public void AddKafkaMessaging_WithInvalidConsumerAutoOffsetReset_ThrowsOptionsValidationExceptionOnAccess()
+    {
+        var services = new ServiceCollection();
+        var configuration = BuildConfiguration(new Dictionary<string, string?>
+        {
+            [$"{ConfigurationSections.Kafka}:BootstrapServers"] = "kafka:29092",
+            [$"{ConfigurationSections.Kafka}:ConsumerAutoOffsetReset"] = "Beginning"
+        });
+
+        services.AddKafkaMessaging(configuration);
+        using var provider = services.BuildServiceProvider();
+
+        Action action = () => _ = provider.GetRequiredService<IOptions<KafkaOptions>>().Value;
+        var exception = Assert.Throws<OptionsValidationException>(action);
+
+        Assert.Contains(KafkaValidationMessages.ConsumerAutoOffsetResetInvalid, exception.Failures);
     }
 
     [Fact]

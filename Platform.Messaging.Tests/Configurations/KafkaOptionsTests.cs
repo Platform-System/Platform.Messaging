@@ -15,6 +15,7 @@ public sealed class KafkaOptionsTests
         Assert.Equal(string.Empty, options.SaslMechanism);
         Assert.Equal(string.Empty, options.SaslUsername);
         Assert.Equal(string.Empty, options.SaslPassword);
+        Assert.Equal(string.Empty, options.ConsumerAutoOffsetReset);
         Assert.Null(options.ProducerMessageSendMaxRetries);
         Assert.Null(options.ProducerRetryBackoffMs);
         Assert.Null(options.ProducerRetryBackoffMaxMs);
